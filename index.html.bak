@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Averías - ElectroTools Pro</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Iconos Lucide (versión CDN para Vanilla) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- jsPDF para exportación profesional -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="container header-content">
+                <div class="brand">
+                    <div class="logo-box">
+                        <i data-lucide="wrench"></i>
+                    </div>
+                    <div class="brand-text">
+                        <h1>ElectroHotel Pro</h1>
+                        <p>Mantenimiento Benidorm</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button id="theme-toggle" class="btn btn-icon" title="Cambiar tema">
+                        <i data-lucide="moon" id="theme-icon"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navegación Móvil (Tabs) -->
+        <nav class="mobile-nav">
+            <button class="nav-item active" data-tab="faults">
+                <i data-lucide="clipboard-list"></i>
+                <span>Averías</span>
+            </button>
+            <button class="nav-item" data-tab="schematics">
+                <i data-lucide="drafting-compass"></i>
+                <span>Esquemas</span>
+            </button>
+            <button class="nav-item" data-tab="audio">
+                <i data-lucide="mic"></i>
+                <span>Notas Voz</span>
+            </button>
+            <button class="nav-item" data-tab="manual">
+                <i data-lucide="book-open"></i>
+                <span>Manual</span>
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="container main-content">
+            
+            <!-- Sección: Averías y Tareas -->
+            <section id="tab-faults" class="tab-content active">
+                <div class="section-header">
+                    <h2>Registro de Tareas y Averías</h2>
+                    <button id="btn-add-fault" class="btn btn-primary">
+                        <i data-lucide="plus"></i> Nueva Tarea
+                    </button>
+                </div>
+
+                <div class="controls-section">
+                    <div class="search-box">
+                        <div class="input-wrapper">
+                            <i data-lucide="search" class="input-icon"></i>
+                            <input type="text" id="search" placeholder="Buscar avería o habitación...">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="faults-grid" class="faults-grid">
+                    <!-- Cards here -->
+                </div>
+            </section>
+
+            <!-- Sección: Esquemas de Conexión -->
+            <section id="tab-schematics" class="tab-content">
+                <div class="section-header">
+                    <h2>Esquemas Técnicos</h2>
+                </div>
+                <div id="schematics-grid" class="schematics-grid">
+                    <!-- Schematics here -->
+                </div>
+            </section>
+
+            <!-- Sección: Notas de Audio -->
+            <section id="tab-audio" class="tab-content">
+                <div class="section-header">
+                    <h2>Notas de Voz</h2>
+                    <button id="btn-record-audio" class="btn btn-danger record-btn">
+                        <i data-lucide="mic"></i> <span id="record-text">Grabar Nota</span>
+                    </button>
+                </div>
+                <div id="audio-list" class="audio-list">
+                    <!-- Audio notes here -->
+                </div>
+            </section>
+
+            <!-- Sección: Manual y Seguridad -->
+<section id="tab-manual" class="tab-content">
+    <div class="sidebar">
+        <div class="sidebar-card">
+            <h3><i data-lucide="shield-check"></i> Las 5 Reglas de Oro</h3>
+            <p><strong>Seguridad obligatoria en todo trabajo eléctrico bajo tensión (LOTO)</strong></p>
+            <ol class="resource-list" style="font-weight: 500; line-height: 1.6;">
+                <li><strong>1. Desconexión</strong>: Corte efectivo y visible de TODAS las fuentes de tensión.</li>
+                <li><strong>2. Bloqueo y señalización</strong>: Colocar candado y cartel de "No maniobrar - Peligro".</li>
+                <li><strong>3. Verificar ausencia de tensión</strong>: Comprobar con multímetro o probador en todos los polos.</li>
+                <li><strong>4. Puesta a tierra y cortocircuito</strong>: Aplicar en la zona de trabajo para eliminar riesgos residuales.</li>
+                <li><strong>5. Delimitación y señalización de zona</strong>: Proteger el área y evitar acceso no autorizado.</li>
+            </ol>
+            <p style="margin-top: 1rem; color: var(--primary); font-weight: bold;">¡Cumplirlas SIEMPRE salva vidas!</p>
+        </div>
+
+        <div class="sidebar-card">
+            <h3><i data-lucide="file-text"></i> Recursos</h3>
+            <a href="manual-tecnico-del-electricista.pdf" target="_blank" class="btn btn-outline w-full mb-2">
+                <i data-lucide="external-link"></i> Abrir Manual Técnico del Electricista (PDF)
+            </a>
+            <button id="btn-export-pdf" class="btn btn-outline w-full">
+                <i data-lucide="download"></i> Exportar Mis Tareas a PDF
+            </button>
+        </div>
+    </div>
+</section>
+                <div class="sidebar">
+                    <div class="sidebar-card">
+                        <h3><i data-lucide="shield-check"></i> Las 5 Reglas de Oro</h3>
+                        <ul class="resource-list">
+                            <li>1. Desconexión visible.</li>
+                            <li>2. Enclavamiento y bloqueo.</li>
+                            <li>3. Verificar ausencia tensión.</li>
+                            <li>4. Puesta a tierra/cortocircuito.</li>
+                            <li>5. Señalización de zona.</li>
+                        </ul>
+                    </div>
+                    <div class="sidebar-card">
+                        <h3><i data-lucide="file-text"></i> Recursos</h3>
+                        <a href="manual-tecnico-del-electricista.pdf" target="_blank" class="btn btn-outline w-full mb-2">
+                            <i data-lucide="external-link"></i> Abrir Manual PDF
+                        </a>
+                        <button id="btn-export-pdf" class="btn btn-outline w-full">
+                            <i data-lucide="download"></i> Exportar Mis Tareas
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Modal Formulario -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Añadir Tarea</h2>
+                <button class="btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <form id="fault-form">
+                <input type="hidden" id="fault-id">
+                
+                <div class="form-group">
+                    <label>Título / Ubicación</label>
+                    <input type="text" id="title" required placeholder="Ej: Hab 402 - Falla Aire">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Categoría</label>
+                        <select id="category" required>
+                            <option value="clima">Climatización</option>
+                            <option value="piscina">Piscina/Motores</option>
+                            <option value="iluminacion">Iluminación</option>
+                            <option value="cocina">Cocina Industrial</option>
+                            <option value="otros">Otros</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Urgencia</label>
+                        <select id="severity" required>
+                            <option value="low">Baja</option>
+                            <option value="medium">Media</option>
+                            <option value="critical">Urgente</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Adjuntar Foto / Archivo</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fault-image" accept="image/*" capture="environment">
+                        <div id="image-preview" class="image-preview hidden"></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Descripción y Diagnóstico</label>
+                    <textarea id="description" required rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Solución Realizada</label>
+                    <textarea id="solution" required rows="3"></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Guardar Tarea</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Contenedor Toasts -->
+    <div id="toast-container" class="toast-container"></div>
+
+
+
+    </div>
+
+    <!-- Modal Formulario -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Añadir Nueva Avería</h2>
+                <p>Completa la información técnica.</p>
+            </div>
+            <form id="fault-form">
+                <input type="hidden" id="fault-id">
+                
+                <div class="form-group">
+                    <label>Título</label>
+                    <input type="text" id="title" required placeholder="Ej: Cortocircuito en instalación">
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="description" required></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Categoría</label>
+                        <select id="category" required>
+                            <option value="electrical">Eléctrica</option>
+                            <option value="protection">Protección</option>
+                            <option value="wiring">Cableado</option>
+                            <option value="panel">Cuadro eléctrico</option>
+                            <option value="motor">Motores</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Severidad</label>
+                        <select id="severity" required>
+                            <option value="low">Baja</option>
+                            <option value="medium">Media</option>
+                            <option value="high">Alta</option>
+                            <option value="critical">Crítica</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Síntomas (separados por comas)</label>
+                    <textarea id="symptoms" required placeholder="Ej: Chispas, Olor a quemado"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Herramientas (separadas por comas)</label>
+                    <textarea id="tools" required placeholder="Ej: Multímetro, Destornillador"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Solución</label>
+                    <textarea id="solution" required></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" id="btn-cancel" class="btn btn-outline">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Contenedor de Notificaciones (Toasts) -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

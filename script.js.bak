@@ -1,0 +1,378 @@
+/**
+ * ElectroHotel Pro - Benidorm Maintenance Tool
+ * OOP Architecture
+ */
+
+// --- Models ---
+
+class Fault {
+    constructor({ id, title, description, category, severity, solution, image, dateAdded }) {
+        this.id = id || Date.now().toString();
+        this.title = title;
+        this.description = description;
+        this.category = category;
+        this.severity = severity;
+        this.solution = solution;
+        this.image = image || null;
+        this.dateAdded = dateAdded || new Date().toLocaleString();
+    }
+}
+
+class AudioNote {
+    constructor({ id, blobUrl, dateAdded }) {
+        this.id = id || Date.now().toString();
+        this.blobUrl = blobUrl;
+        this.dateAdded = dateAdded || new Date().toLocaleString();
+    }
+}
+
+// --- Persistence Service ---
+
+class Database {
+    constructor() {
+        this.FAULTS_KEY = 'ehp_faults';
+        this.AUDIO_KEY = 'ehp_audio';
+        this.SCHEMATICS_KEY = 'ehp_schematics';
+    }
+
+    getFaults() {
+        const data = localStorage.getItem(this.FAULTS_KEY);
+        return data ? JSON.parse(data).map(f => new Fault(f)) : this.getInitialFaults();
+    }
+
+    saveFaults(faults) {
+        localStorage.setItem(this.FAULTS_KEY, JSON.stringify(faults));
+    }
+
+    getInitialFaults() {
+        return [
+            new Fault({
+                title: 'Hab 305 - Clima no enfría',
+                description: 'El termostato marca error E1. Compresor no arranca.',
+                category: 'clima',
+                severity: 'critical',
+                solution: 'Sustitución de condensador de arranque de 35uF en unidad exterior.',
+            }),
+            new Fault({
+                title: 'Piscina - Bomba depuradora 2',
+                description: 'Zumbido al intentar arrancar. Posible bloqueo.',
+                category: 'piscina',
+                severity: 'medium',
+                solution: 'Desbloqueo manual del eje y limpieza de prefiltro. Engrase de rodamientos.',
+            })
+        ];
+    }
+
+    getSchematics() {
+        return [
+            { title: 'Arranque Estrella-Triángulo', category: 'Motores', img: 'https://placehold.co/400x200?text=Estrella-Triangulo' },
+            { title: 'Inversión de Giro Trifásico', category: 'Motores', img: 'https://placehold.co/400x200?text=Inversion+Giro' },
+            { title: 'Conexión Detector de Presencia', category: 'Iluminación', img: 'https://placehold.co/400x200?text=Sensor+PIR' },
+            { title: 'Cuadro General Hotel Tipologia', category: 'Distribución', img: 'https://placehold.co/400x200?text=Esquema+Unifilar' }
+        ];
+    }
+}
+
+// --- Managers ---
+
+class TabManager {
+    constructor() {
+        this.navItems = document.querySelectorAll('.nav-item');
+        this.contents = document.querySelectorAll('.tab-content');
+        this.init();
+    }
+
+    init() {
+        this.navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const tabId = item.getAttribute('data-tab');
+                this.switchTab(tabId);
+            });
+        });
+    }
+
+    switchTab(tabId) {
+        this.navItems.forEach(nav => nav.classList.remove('active'));
+        this.contents.forEach(content => content.classList.remove('active'));
+
+        document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+
+        window.scrollTo(0, 0);
+    }
+}
+
+class AudioManager {
+    constructor(onSave) {
+        this.onSave = onSave;
+        this.isRecording = false;
+        this.mediaRecorder = null;
+        this.chunks = [];
+        this.btn = document.getElementById('btn-record-audio');
+        this.statusText = document.getElementById('record-text');
+        this.init();
+    }
+
+    async init() {
+        this.btn.addEventListener('click', () => this.toggleRecording());
+    }
+
+    async toggleRecording() {
+        if (!this.isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                this.mediaRecorder = new MediaRecorder(stream);
+                this.chunks = [];
+
+                this.mediaRecorder.ondataavailable = (e) => this.chunks.push(e.data);
+                this.mediaRecorder.onstop = () => {
+                    const blob = new Blob(this.chunks, { type: 'audio/ogg; codecs=opus' });
+                    const url = URL.createObjectURL(blob);
+                    this.onSave(new AudioNote({ blobUrl: url }));
+                };
+
+                this.mediaRecorder.start();
+                this.isRecording = true;
+                this.btn.classList.add('recording');
+                this.statusText.textContent = 'Detener Grabación';
+            } catch (err) {
+                alert('No se pudo acceder al micrófono para la nota de voz.');
+            }
+        } else {
+            this.mediaRecorder.stop();
+            this.isRecording = false;
+            this.btn.classList.remove('recording');
+            this.statusText.textContent = 'Grabar Nota';
+        }
+    }
+}
+
+class UIManager {
+    constructor() {
+        this.faultsGrid = document.getElementById('faults-grid');
+        this.schematicsGrid = document.getElementById('schematics-grid');
+        this.audioList = document.getElementById('audio-list');
+        this.modal = document.getElementById('modal');
+        this.imagePreview = document.getElementById('image-preview');
+    }
+
+    renderFaults(faults, onEdit, onDelete) {
+        this.faultsGrid.innerHTML = '';
+        faults.forEach(f => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="badge sev-${f.severity}">${f.severity}</span>
+                    <small>${f.dateAdded.split(',')[0]}</small>
+                </div>
+                <h3>${f.title}</h3>
+                <p style="margin: 0.5rem 0; font-size: 0.9rem;">${f.description}</p>
+                ${f.image ? `<div class="card-img"><img src="${f.image}" style="width:100%; border-radius:0.5rem; margin: 0.5rem 0;"></div>` : ''}
+                <div class="solution-box" style="margin-top:0.5rem;">
+                    <strong>Solución:</strong> ${f.solution}
+                </div>
+                <div class="card-footer" style="display:flex; gap:1rem; margin-top:1rem; justify-content: flex-end;">
+                    <button class="btn btn-icon delete" onclick="event.stopPropagation()"><i data-lucide="trash-2"></i></button>
+                    <button class="btn btn-icon edit" onclick="event.stopPropagation()"><i data-lucide="edit-3"></i></button>
+                </div>
+            `;
+
+            card.querySelector('.delete').onclick = () => onDelete(f.id);
+            card.querySelector('.edit').onclick = () => onEdit(f);
+
+            this.faultsGrid.appendChild(card);
+        });
+        lucide.createIcons();
+    }
+
+    renderSchematics(schemas) {
+        this.schematicsGrid.innerHTML = '';
+        schemas.forEach(s => {
+            const card = document.createElement('div');
+            card.className = 'schema-card';
+            card.innerHTML = `
+                <div class="schema-img" onclick="window.open('${s.img}', '_blank')">
+                    <img src="${s.img}" style="width:100%; height:100%; object-fit:cover;">
+                </div>
+                <div class="schema-info">
+                    <h4>${s.title}</h4>
+                    <small>${s.category}</small>
+                </div>
+            `;
+            this.schematicsGrid.appendChild(card);
+        });
+    }
+
+    renderAudio(notes) {
+        this.audioList.innerHTML = '';
+        if (notes.length === 0) this.audioList.innerHTML = '<p style="text-align:center; color:gray">No hay notas de voz.</p>';
+        notes.forEach(n => {
+            const card = document.createElement('div');
+            card.className = 'audio-card';
+            card.innerHTML = `
+                <div class="audio-meta">
+                    <span>Grabación: ${n.dateAdded}</span>
+                </div>
+                <audio controls src="${n.blobUrl}"></audio>
+            `;
+            this.audioList.appendChild(card);
+        });
+    }
+
+    showModal(title = 'Nueva Tarea') {
+        document.getElementById('modal-title').textContent = title;
+        this.modal.classList.remove('hidden');
+    }
+
+    hideModal() {
+        this.modal.classList.add('hidden');
+        document.getElementById('fault-form').reset();
+        this.imagePreview.innerHTML = '';
+        this.imagePreview.classList.add('hidden');
+    }
+
+    showImagePreview(src) {
+        this.imagePreview.innerHTML = `<img src="${src}">`;
+        this.imagePreview.classList.remove('hidden');
+    }
+}
+
+// --- Main Application Controller ---
+
+class App {
+    constructor() {
+        this.db = new Database();
+        this.ui = new UIManager();
+        this.tabs = new TabManager();
+        this.audio = new AudioManager((note) => this.handleSaveAudio(note));
+
+        this.faults = this.db.getFaults();
+        this.audioNotes = []; // Transient for now, non-persistent due to blob size in localstorage
+
+        this.init();
+    }
+
+    init() {
+        this.ui.renderFaults(this.faults, (f) => this.editFault(f), (id) => this.deleteFault(id));
+        this.ui.renderSchematics(this.db.getSchematics());
+        this.bindEvents();
+
+        // Dark mode sync
+        if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+    }
+
+    bindEvents() {
+        document.getElementById('btn-add-fault').addEventListener('click', () => {
+            document.getElementById('fault-id').value = '';
+            this.ui.showModal();
+        });
+
+        document.querySelector('.btn-close-modal').addEventListener('click', () => this.ui.hideModal());
+
+        // Image upload handling
+        document.getElementById('fault-image').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => this.ui.showImagePreview(ev.target.result);
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Form submit
+        document.getElementById('fault-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleSaveFault();
+        });
+
+        // Theme toggle
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            const isDark = document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        });
+
+        // Export PDF
+        document.getElementById('btn-export-pdf').addEventListener('click', () => this.exportPDF());
+    }
+
+    handleSaveFault() {
+        const id = document.getElementById('fault-id').value;
+        const imgElement = this.ui.imagePreview.querySelector('img');
+
+        const data = {
+            id: id || null,
+            title: document.getElementById('title').value,
+            category: document.getElementById('category').value,
+            severity: document.getElementById('severity').value,
+            description: document.getElementById('description').value,
+            solution: document.getElementById('solution').value,
+            image: imgElement ? imgElement.src : null
+        };
+
+        if (id) {
+            const index = this.faults.findIndex(f => f.id === id);
+            this.faults[index] = new Fault(data);
+        } else {
+            this.faults.unshift(new Fault(data));
+        }
+
+        this.db.saveFaults(this.faults);
+        this.ui.renderFaults(this.faults, (f) => this.editFault(f), (id) => this.deleteFault(id));
+        this.ui.hideModal();
+    }
+
+    editFault(fault) {
+        document.getElementById('fault-id').value = fault.id;
+        document.getElementById('title').value = fault.title;
+        document.getElementById('category').value = fault.category;
+        document.getElementById('severity').value = fault.severity;
+        document.getElementById('description').value = fault.description;
+        document.getElementById('solution').value = fault.solution;
+        if (fault.image) this.ui.showImagePreview(fault.image);
+        this.ui.showModal('Editar Tarea');
+    }
+
+    deleteFault(id) {
+        if (confirm('¿Seguro que quieres borrar este registro?')) {
+            this.faults = this.faults.filter(f => f.id !== id);
+            this.db.saveFaults(this.faults);
+            this.ui.renderFaults(this.faults, (f) => this.editFault(f), (id) => this.deleteFault(id));
+        }
+    }
+
+    handleSaveAudio(note) {
+        this.audioNotes.push(note);
+        this.ui.renderAudio(this.audioNotes);
+    }
+
+    exportPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFontSize(20);
+        doc.text('ElectroHotel Pro - Benidorm', 20, 20);
+        doc.setFontSize(14);
+        doc.text('Reporte de Mantenimiento Eléctrico', 20, 30);
+
+        let y = 50;
+        this.faults.forEach((f, i) => {
+            if (y > 250) { doc.addPage(); y = 20; }
+            doc.setFontSize(12);
+            doc.text(`${i + 1}. ${f.title} (${f.dateAdded.split(',')[0]})`, 20, y);
+            y += 7;
+            doc.setFontSize(10);
+            doc.text(`Diag: ${f.description.substring(0, 80)}...`, 25, y);
+            y += 5;
+            doc.text(`Sol: ${f.solution.substring(0, 80)}...`, 25, y);
+            y += 10;
+        });
+
+        doc.save('Mantenimiento-Hotel-Benidorm.pdf');
+    }
+}
+
+// Spark it up
+document.addEventListener('DOMContentLoaded', () => {
+    window.app = new App();
+});

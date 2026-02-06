@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElectroExpert - Agenda Técnica de Mantenimiento</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Iconos Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="dark-mode"> <!-- Pre-enabled dark mode for professional look -->
+    <div class="app-container">
+        
+        <!-- Header & Nav Together at Top -->
+        <header class="main-header">
+            <div class="container header-content">
+                <div class="brand">
+                    <div class="logo-box">
+                        <i data-lucide="zap"></i>
+                    </div>
+                    <div class="brand-text">
+                        <h1>ElectroExpert <span>Pro</span></h1>
+                        <p>Agenda Técnica de Mantenimiento</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button id="theme-toggle" class="btn btn-icon" title="Cambiar tema">
+                        <i data-lucide="sun" id="theme-icon"></i>
+                    </button>
+                    <div class="user-status">
+                        <span class="status-dot"></span>
+                        On Duty
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Moved Nav to Top -->
+            <nav class="top-nav">
+                <button class="nav-item active" data-tab="agenda">
+                    <i data-lucide="calendar"></i>
+                    <span>Agenda</span>
+                </button>
+                <button class="nav-item" data-tab="faults">
+                    <i data-lucide="clipboard-list"></i>
+                    <span>Tareas</span>
+                </button>
+                <button class="nav-item" data-tab="schematics">
+                    <i data-lucide="layout"></i>
+                    <span>Esquemas</span>
+                </button>
+                <button class="nav-item" data-tab="audio">
+                    <i data-lucide="mic"></i>
+                    <span>Voz</span>
+                </button>
+                <button class="nav-item" data-tab="manual">
+                    <i data-lucide="book"></i>
+                    <span>Manual</span>
+                </button>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container main-content">
+            
+            <!-- Sección: Agenda (Calendario y Notas del Día) -->
+            <section id="tab-agenda" class="tab-content active">
+                <div class="agenda-layout">
+                    <div class="agenda-calendar-card">
+                        <div id="calendar-header" class="calendar-header">
+                            <h3 id="current-month-year">Junio 2024</h3>
+                            <div class="cal-nav">
+                                <button id="prevMonth" class="btn btn-icon"><i data-lucide="chevron-left"></i></button>
+                                <button id="nextMonth" class="btn btn-icon"><i data-lucide="chevron-right"></i></button>
+                            </div>
+                        </div>
+                        <div id="calendar-body" class="calendar-body">
+                            <!-- JS will inject days -->
+                        </div>
+                        
+                        <!-- Las 5 Reglas de Oro debajo del calendario -->
+                        <div class="agenda-gold-rules">
+                            <h4><i data-lucide="shield-check"></i> Seguridad</h4>
+                            <ul class="mini-rules-list">
+                                <li><span>1</span> Desconexión visible</li>
+                                <li><span>2</span> Enclavamiento y bloqueo</li>
+                                <li><span>3</span> Verificar ausencia tensión</li>
+                                <li><span>4</span> Puesta a tierra y corto</li>
+                                <li><span>5</span> Señalización de zona</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="daily-tasks-card">
+                        <div class="section-header">
+                            <h2>Plan del Día: <span id="selected-date-text">Hoy</span></h2>
+                            <button id="btn-quick-task" class="btn btn-primary btn-sm">
+                                <i data-lucide="plus"></i> Anotar
+                            </button>
+                        </div>
+                        <div id="daily-agenda-list" class="daily-agenda-list">
+                            <!-- Tasks for selected day -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección: Historial de Tareas y Averías -->
+            <section id="tab-faults" class="tab-content">
+                <div class="section-header">
+                    <h2>Historial de Intervenciones</h2>
+                    <div class="header-btns">
+                        <button id="btn-export-pdf" class="btn btn-outline">
+                            <i data-lucide="download"></i> Exportar
+                        </button>
+                        <button id="btn-add-fault" class="btn btn-primary">
+                            <i data-lucide="plus"></i> Nueva Entrada
+                        </button>
+                    </div>
+                </div>
+
+                <div class="controls-section">
+                    <div class="search-box">
+                        <div class="input-wrapper">
+                            <i data-lucide="search" class="input-icon"></i>
+                            <input type="text" id="search" placeholder="Filtrar por avería, zona o diagnóstico...">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="faults-grid" class="faults-grid">
+                    <!-- Cards here -->
+                </div>
+            </section>
+
+            <!-- Sección: Esquemas Eléctricos -->
+            <section id="tab-schematics" class="tab-content">
+                <div class="section-header">
+                    <div class="header-text">
+                        <h2>Consulta de Esquemas</h2>
+                        <p class="section-subtitle">Normativa y circuitos industriales.</p>
+                    </div>
+                    <button id="btn-add-schematic" class="btn btn-primary">
+                        <i data-lucide="plus"></i> Añadir Foto / Esquema
+                    </button>
+                </div>
+                <!-- Search for schematics -->
+                <div class="controls-section">
+                    <div class="search-box">
+                        <div class="input-wrapper">
+                            <i data-lucide="search" class="input-icon"></i>
+                            <input type="text" id="search-schematics" placeholder="Buscar esquema...">
+                        </div>
+                    </div>
+                </div>
+                <div id="schematics-grid" class="schematics-grid">
+                    <!-- 10 Schematics here via JS -->
+                </div>
+            </section>
+
+            <!-- Sección: Notas de Audio -->
+            <section id="tab-audio" class="tab-content">
+                <div class="section-header">
+                    <h2>Grabadora Técnica</h2>
+                    <button id="btn-record-audio" class="btn btn-danger record-btn">
+                        <i data-lucide="mic"></i> <span id="record-text">Grabar Dictado</span>
+                    </button>
+                </div>
+                <div id="audio-list" class="audio-list">
+                    <!-- Audio notes here -->
+                </div>
+            </section>
+
+            <!-- Sección: Manual y Recursos -->
+            <section id="tab-manual" class="tab-content">
+                <div class="manual-container">
+                    <!-- 5 Reglas de Oro - Destacadas Arriba -->
+                    <div class="gold-rules-banner">
+                        <div class="banner-header">
+                            <i data-lucide="shield-alert"></i>
+                            <h3>LAS 5 REGLAS DE ORO (SEGURIDAD ELÉCTRICA)</h3>
+                        </div>
+                        <div class="rules-grid">
+                            <div class="rule-box"><span>1</span><p>Desconexión visible</p></div>
+                            <div class="rule-box"><span>2</span><p>Enclavamiento y bloqueo</p></div>
+                            <div class="rule-box"><span>3</span><p>Verificar ausencia de tensión</p></div>
+                            <div class="rule-box"><span>4</span><p>Puesta a tierra y corto</p></div>
+                            <div class="rule-box"><span>5</span><p>Señalización de zona</p></div>
+                        </div>
+                    </div>
+
+                    <div class="manual-main-layout">
+                        <!-- Sidebar de Navegación del Manual -->
+                        <aside class="manual-sidebar">
+                            <div class="search-manual">
+                                <input type="text" id="manual-search" placeholder="Buscar en manual...">
+                            </div>
+                            <nav class="manual-nav">
+                            <button class="nav-item active" data-section="m-general"><i data-lucide="book-open"></i> General</button>
+                            <button class="nav-item" data-section="m-simbolos"><i data-lucide="component"></i> Simbología</button>
+                            <button class="nav-item" data-section="m-circuitos"><i data-lucide="zap"></i> Secciones/Amperios</button>
+                            <button class="nav-item" data-section="m-calidatension"><i data-lucide="activity"></i> Fórmulas/Motores</button>
+                            <button class="nav-item" data-section="m-potencia"><i data-lucide="hotel"></i> Cargas Hotel</button>
+                            <button class="nav-item gold-nav" data-section="m-repaso"><i data-lucide="zap"></i> Repaso Rápido</button>
+                            
+                            <div class="manual-extra-links" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                                <a href="manual-tecnico-del-electricista.pdf" target="_blank" class="btn btn-outline btn-sm w-full mb-2" style="font-size: 0.75rem;">
+                                    <i data-lucide="external-link"></i> Abrir PDF Técnico
+                                </a>
+                                <button onclick="app.exportPDF()" class="btn btn-outline btn-sm w-full" style="font-size: 0.75rem;">
+                                    <i data-lucide="download"></i> Exportar Registro
+                                </button>
+                            </div>
+                        </nav>
+                        </aside>
+
+                        <!-- Contenido Dinámico del Manual -->
+                        <div class="manual-content-viewer" id="manual-viewer">
+                            <!-- Seccion: General -->
+                            <article id="m-general" class="manual-article active">
+                                <div class="industrial-header">
+                                    <i data-lucide="factory"></i>
+                                    <div>
+                                        <h2>Mantenimiento Industrial Hotelero</h2>
+                                        <p>Guía de Alta Potencia (Sistemas hasta 200kW)</p>
+                                    </div>
+                                </div>
+                                <hr>
+                                <h3>Protocolo Crítico de Intervención</h3>
+                                <p>En un hotel, la continuidad del servicio es vital. Antes de intervenir en cuadros principales:</p>
+                                <ul class="manual-list">
+                                    <li>Verificar balance de cargas en las 3 fases (R, S, T).</li>
+                                    <li>Comprobar temperatura de bornes con termografía si es posible.</li>
+                                    <li>Mantener siempre las **5 Reglas de Oro** activas.</li>
+                                </ul>
+                            </article>
+
+                            <!-- Seccion: Simbologia -->
+                            <article id="m-simbolos" class="manual-article">
+                                <h2>Simbología Cuadros Industriales</h2>
+                                <div class="table-wrapper">
+                                    <table class="manual-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Símbolo</th>
+                                                <th>Componente</th>
+                                                <th>Función en Hotel</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>IGS</td><td>Int. General Supre-inmunizado</td><td>Protección contra disparos por armónicos (LEDs/Aires)</td></tr>
+                                            <tr><td>Vigía</td><td>Relé de Aislamiento</td><td>Monitoreo en salas de máquinas y SPAs</td></tr>
+                                            <tr><td>SPD</td><td>Protector Sobretensiones</td><td>Protección de electrónica de control (Servidores/WIFI)</td></tr>
+                                            <tr><td>KM</td><td>Contactor Trifásico</td><td>Mando de motores (Extractores/Bombas)</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </article>
+
+                            <!-- Seccion: Secciones y Cables (INDUSTRIAL) -->
+                            <article id="m-circuitos" class="manual-article">
+                                <h2>Secciones de Cable y Ampacidad (Cobre)</h2>
+                                <p class="text-muted">Referencia rápida para Trifásica 400V (Aislamiento XLPE/EPR)</p>
+                                <div class="table-wrapper">
+                                    <table class="manual-table highlight-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Sección (mm²)</th>
+                                                <th>Intensidad Máx (A)</th>
+                                                <th>Potencia Máx (kW) @ 400V</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>10</td><td>63A</td><td>40-45 kW</td></tr>
+                                            <tr><td>16</td><td>80A</td><td>55 kW</td></tr>
+                                            <tr><td>25</td><td>100A</td><td>70 kW</td></tr>
+                                            <tr><td>35</td><td>125A</td><td>85 kW</td></tr>
+                                            <tr><td>50</td><td>160A</td><td>110 kW</td></tr>
+                                            <tr><td>70</td><td>200A</td><td>140 kW</td></tr>
+                                            <tr><td>95</td><td>250A</td><td>175 kW</td></tr>
+                                            <tr class="crit-row"><td>120</td><td>320A</td><td>220 kW</td></tr>
+                                            <tr><td>150</td><td>400A</td><td>275 kW</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <small>* Criterio de caída de tensión no incluido. Basado en instalación bajo tubo/aire.</small>
+                            </article>
+
+                            <!-- Seccion: Tension -->
+                            <article id="m-calidatension" class="manual-article">
+                                <h2>Cálculo Rápido de Campo</h2>
+                                <div class="formula-grid">
+                                    <div class="formula-box-mini">
+                                        <h5>Intensidad (A) Trífasica</h5>
+                                        <code>I = P / (1.73 * 400 * cos φ)</code>
+                                        <p>Tip: cos φ ≈ 0.85</p>
+                                    </div>
+                                    <div class="formula-box-mini">
+                                        <h5>Potencia (kW) Estimada</h5>
+                                        <code>kW ≈ 0.6 * Amperios</code>
+                                        <p>Regla rápida para 400V</p>
+                                    </div>
+                                </div>
+                                <hr>
+                                <h3>Arranques de Motor</h3>
+                                <ul class="manual-list">
+                                    <li>Directo: I_arranque ≈ 6-8 veces I_nominal.</li>
+                                    <li>Estrella-Triángulo: I_arranque ≈ 2 veces I_nominal.</li>
+                                    <li>Variador: I_arranque ≈ 1.2 veces I_nominal.</li>
+                                </ul>
+                            </article>
+
+                            <!-- Seccion: Potencia -->
+                            <article id="m-potencia" class="manual-article">
+                                <h2>Consumos Habituales Hotel</h2>
+                                <div class="hotel-loads">
+                                    <div class="load-item">
+                                        <span>Chiller / Enfriadora (Planta):</span>
+                                        <strong>40 - 120 kW</strong>
+                                    </div>
+                                    <div class="load-item">
+                                        <span>Sala Calderas ACS:</span>
+                                        <strong>15 - 45 kW</strong>
+                                    </div>
+                                    <div class="load-item">
+                                        <span>Cocina Industrial (Pleno uso):</span>
+                                        <strong>50 - 100 kW</strong>
+                                    </div>
+                                    <div class="load-item">
+                                        <span>Ascensores (Grupo de 3):</span>
+                                        <strong>25 - 40 kW</strong>
+                                    </div>
+                                    <div class="load-item">
+                                        <span>Iluminación zonas comunes:</span>
+                                        <strong>10 - 20 kW</strong>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <!-- Seccion: Repaso Rapido -->
+                            <article id="m-repaso" class="manual-article">
+                                <div class="flashcard-grid">
+                                    <div class="flashcard crit-card">
+                                        <div class="card-icon"><i data-lucide="alert-triangle"></i></div>
+                                        <h4>¿Salta el Diferencial?</h4>
+                                        <p>1. Desconecta todo en el circuito.<br>2. Rearma.<br>3. Ve conectando uno a uno.<br><strong>Tip:</strong> Si salta sin carga, hay derivación en el cableado o humedad en registro.</p>
+                                    </div>
+                                    <div class="flashcard">
+                                        <div class="card-icon"><i data-lucide="rotate-cw"></i></div>
+                                        <h4>Motor no arranca (Ronroneo)</h4>
+                                        <p>Falta una fase o condensador de arranque seco. Comprobar tensión entre las 3 fases (debe dar 400V entre ellas).</p>
+                                    </div>
+                                    <div class="flashcard">
+                                        <div class="card-icon"><i data-lucide="lightbulb-off"></i></div>
+                                        <h4>Parpadeo en LEDs</h4>
+                                        <p>Posible retorno por el neutro o interruptor con luz de neón. Instalar un condensador de 0.47μF en paralelo con la lámpara.</p>
+                                    </div>
+                                    <div class="flashcard gold">
+                                        <div class="card-icon"><i data-lucide="shield"></i></div>
+                                        <h4>Seguridad 101</h4>
+                                        <p>Antes de tocar: 1. Cortar, 2. Bloquear, 3. Medir. <strong>¡Nunca confíes solo en el color del cable!</strong></p>
+                                    </div>
+                                    <div class="flashcard">
+                                        <div class="card-icon"><i data-lucide="database"></i></div>
+                                        <h4>Tensiones Estándar</h4>
+                                        <p>F-N: 230V | F-F: 400V | F-Tierra: 230V | N-Tierra: < 1.5V (si es más, hay neutro sobrecargado).</p>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Modal para Tareas/Averías -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Añadir Nueva Tarea</h2>
+                <button class="btn-close-modal btn-icon"><i data-lucide="x"></i></button>
+            </div>
+            <form id="fault-form">
+                <input type="hidden" id="fault-id">
+                
+                <div class="form-group">
+                    <label>Título / Ubicación / Calentador</label>
+                    <input type="text" id="title" required placeholder="Ej: Calentador Industrial 01 - Resistencia">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Categoría</label>
+                        <select id="category" required>
+                            <option value="clima">Climatización</option>
+                            <option value="calentador">Calentador / Agua Caliente</option>
+                            <option value="piscina">Piscina/Motores</option>
+                            <option value="iluminacion">Iluminación</option>
+                            <option value="cocina">Cocina Industrial</option>
+                            <option value="otros">Otros</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Urgencia</label>
+                        <select id="severity" required>
+                            <option value="low">Baja (Mantenimiento)</option>
+                            <option value="medium">Media (Urgencia 24h)</option>
+                            <option value="critical">Crítica (Intervención Ya)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Adjuntar Evidencia (Foto)</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fault-image" accept="image/*">
+                        <div id="image-preview" class="image-preview hidden"></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Diagnosis / Problema</label>
+                    <textarea id="description" required rows="2" placeholder="Describe los síntomas..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Solución Técnica</label>
+                    <textarea id="solution" required rows="2" placeholder="¿Qué has hecho para arreglarlo?"></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary w-full">Guardar en Registro</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Esquemas -->
+    <div id="modal-schematic" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="schematic-modal-title">Guardar Esquema / Foto</h2>
+                <button class="btn-close-schematic btn-icon"><i data-lucide="x"></i></button>
+            </div>
+            <form id="schematic-form">
+                <input type="hidden" id="schematic-id">
+                
+                <div class="form-group">
+                    <label>Nombre del Esquema / Ubicación Hotel</label>
+                    <input type="text" id="schema-title" required placeholder="Ej: Cuadro Clima Planta 4 / SPA Bomba 2">
+                </div>
+                
+                <div class="form-group">
+                    <label>Tipo de Sistemas (Benidorm Hotel Pro)</label>
+                    <select id="schema-category" required>
+                        <option value="clima-hvac">Climatización / HVAC Groups</option>
+                        <option value="acs-calderas">ACS / Calderas / Calentadores</option>
+                        <option value="spa-piscina">SPA / Piscinas / Bombas</option>
+                        <option value="cocina-ind">Cocina Industrial</option>
+                        <option value="cuadros-gral">Cuadros Generales / Distribución</option>
+                        <option value="emergencia">Sistemas de Emergencia / Incendios</option>
+                        <option value="otros">Otros Sistemas</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Capturar Esquema (Cámara o Archivo)</label>
+                    <div class="camera-control">
+                        <input type="file" id="schema-image" accept="image/*" capture="environment" class="hidden-input">
+                        <button type="button" class="btn btn-outline w-full" id="btn-trigger-camera">
+                            <i data-lucide="camera"></i> Abrir Cámara / Galería
+                        </button>
+                        <div id="schema-preview" class="image-preview hidden"></div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary w-full">Finalizar y Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
