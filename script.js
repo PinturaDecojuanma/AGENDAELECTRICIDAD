@@ -29,11 +29,22 @@ class Schematic {
     }
 }
 
+class AudioNote {
+    constructor({ id, title, blob, date, duration }) {
+        this.id = id || Date.now().toString();
+        this.title = title || `Nota ${new Date().toLocaleTimeString()}`;
+        this.blob = blob; // base64 string
+        this.date = date || new Date().toISOString().split('T')[0];
+        this.duration = duration || '0:00';
+    }
+}
+
 // --- Persistence ---
 
 class StorageService {
     static TASKS_KEY = 'ee_tasks';
     static SCHEMATICS_KEY = 'ee_user_schematics';
+    static AUDIO_KEY = 'ee_audio_notes';
     static SETTINGS_KEY = 'ee_settings';
 
     static getTasks() {
@@ -52,6 +63,22 @@ class StorageService {
 
     static saveUserSchematics(schematics) {
         localStorage.setItem(this.SCHEMATICS_KEY, JSON.stringify(schematics));
+    }
+
+    static getAudioNotes() {
+        const data = localStorage.getItem(this.AUDIO_KEY);
+        return data ? JSON.parse(data).map(a => new AudioNote(a)) : [];
+    }
+
+    static saveAudioNotes(notes) {
+        localStorage.setItem(this.AUDIO_KEY, JSON.stringify(notes));
+    }
+
+    static clearAll() {
+        localStorage.removeItem(this.TASKS_KEY);
+        localStorage.removeItem(this.SCHEMATICS_KEY);
+        localStorage.removeItem(this.AUDIO_KEY);
+        localStorage.removeItem(this.SETTINGS_KEY);
     }
 }
 
@@ -203,6 +230,255 @@ class SchematicsManager {
     }
 }
 
+class ImageUtils {
+    static compress(file, maxWidth = 800, quality = 0.7) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+            };
+            reader.onerror = error => reject(error);
+        });
+    }
+}
+
+class DebugManager {
+    constructor() {
+        this.panel = document.getElementById('debug-panel');
+        this.console = document.getElementById('debug-console');
+        this.toggleBtn = document.getElementById('debug-toggle');
+        this.closeBtn = document.getElementById('btn-close-debug');
+        this.clearBtn = document.getElementById('btn-clear-storage');
+        this.testCamBtn = document.getElementById('btn-test-camera');
+        this.init();
+    }
+
+    init() {
+        if (this.toggleBtn) this.toggleBtn.onclick = () => this.toggle();
+        if (this.closeBtn) this.closeBtn.onclick = () => this.hide();
+        if (this.clearBtn) {
+            this.clearBtn.onclick = () => {
+                if (confirm('¿BORRAR TODO? Esto eliminará todas las tareas, esquemas y audios.')) {
+                    StorageService.clearAll();
+                    window.location.reload();
+                }
+            };
+        }
+        if (this.testCamBtn) {
+            this.testCamBtn.onclick = () => {
+                this.log('Probando acceso a cámara...');
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(stream => {
+                        this.log('Cámara OK. Permisos concedidos.');
+                        stream.getTracks().forEach(t => t.stop());
+                    })
+                    .catch(err => this.log(`Error Cámara: ${err.message}`, 'error'));
+            };
+        }
+
+        // Intercept console.log
+        const oldLog = console.log;
+        const oldError = console.error;
+        console.log = (...args) => {
+            this.log(args.join(' '));
+            oldLog.apply(console, args);
+        };
+        console.error = (...args) => {
+            this.log(args.join(' '), 'error');
+            oldError.apply(console, args);
+        };
+
+        this.log('Sistema de depuración iniciado.');
+    }
+
+    toggle() {
+        this.panel.classList.toggle('hidden');
+    }
+
+    hide() {
+        this.panel.classList.add('hidden');
+    }
+
+    log(msg, type = 'info') {
+        if (!this.console) return;
+        const div = document.createElement('div');
+        div.className = `debug-log ${type}`;
+        div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        this.console.appendChild(div);
+        this.console.scrollTop = this.console.scrollHeight;
+    }
+}
+
+class AudioManager {
+    constructor(onSave) {
+        this.onSave = onSave;
+        this.mediaRecorder = null;
+        this.audioChunks = [];
+        this.isRecording = false;
+        this.startTime = 0;
+
+        // UI
+        this.btn = document.getElementById('btn-record-audio');
+        this.text = document.getElementById('record-text');
+        this.icon = document.getElementById('mic-icon');
+        this.status = document.getElementById('recording-status');
+        this.visualizer = document.getElementById('audio-visualizer');
+        this.listContainer = document.getElementById('audio-list');
+        this.emptyMsg = document.getElementById('audio-empty-msg');
+
+        this.notes = StorageService.getAudioNotes();
+        this.init();
+    }
+
+    init() {
+        if (this.btn) {
+            this.btn.onclick = () => this.toggleRecording();
+        }
+        this.render();
+    }
+
+    async toggleRecording() {
+        if (this.isRecording) {
+            this.stopRecording();
+        } else {
+            await this.startRecording();
+        }
+    }
+
+    async startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this.mediaRecorder = new MediaRecorder(stream);
+            this.audioChunks = [];
+
+            this.mediaRecorder.ondataavailable = (event) => {
+                this.audioChunks.push(event.data);
+            };
+
+            this.mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                const base64 = await this.blobToBase64(audioBlob);
+
+                const duration = Math.round((Date.now() - this.startTime) / 1000);
+                const durationStr = `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}`;
+
+                const newNote = new AudioNote({
+                    blob: base64,
+                    duration: durationStr
+                });
+
+                this.notes.unshift(newNote);
+                StorageService.saveAudioNotes(this.notes);
+                this.render();
+
+                // Stop tracks
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            this.mediaRecorder.start();
+            this.isRecording = true;
+            this.startTime = Date.now();
+            this.updateUI(true);
+            console.log('Grabación iniciada...');
+        } catch (err) {
+            console.error('No se pudo acceder al micrófono:', err);
+            alert('Error: No se pudo acceder al micrófono. Verifica los permisos.');
+        }
+    }
+
+    stopRecording() {
+        if (this.mediaRecorder && this.isRecording) {
+            this.mediaRecorder.stop();
+            this.isRecording = false;
+            this.updateUI(false);
+            console.log('Grabación detenida.');
+        }
+    }
+
+    updateUI(recording) {
+        if (recording) {
+            this.btn.classList.add('recording');
+            this.btn.classList.replace('btn-danger', 'btn-outline');
+            this.text.textContent = 'Detener Grabación';
+            this.icon.setAttribute('data-lucide', 'square');
+            this.status.textContent = 'Grabando...';
+            this.visualizer.classList.remove('hidden');
+        } else {
+            this.btn.classList.remove('recording');
+            this.btn.classList.replace('btn-outline', 'btn-danger');
+            this.text.textContent = 'Iniciar Grabación';
+            this.icon.setAttribute('data-lucide', 'mic');
+            this.status.textContent = 'Grabación guardada.';
+            this.visualizer.classList.add('hidden');
+        }
+        lucide.createIcons();
+    }
+
+    blobToBase64(blob) {
+        return new Promise((resolve, _) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    deleteNote(id) {
+        if (confirm('¿Eliminar esta nota de voz?')) {
+            this.notes = this.notes.filter(n => n.id !== id);
+            StorageService.saveAudioNotes(this.notes);
+            this.render();
+        }
+    }
+
+    render() {
+        if (!this.listContainer) return;
+
+        this.listContainer.innerHTML = '';
+
+        if (this.notes.length === 0) {
+            if (this.emptyMsg) this.emptyMsg.classList.remove('hidden');
+            return;
+        }
+
+        if (this.emptyMsg) this.emptyMsg.classList.add('hidden');
+
+        this.notes.forEach(note => {
+            const el = document.createElement('div');
+            el.className = 'audio-note-card';
+            el.innerHTML = `
+                <div class="note-info">
+                    <h4 style="font-size: 0.85rem; margin-bottom: 2px;">${note.title}</h4>
+                    <small style="color: grey;">${note.date} • ${note.duration}</small>
+                </div>
+                <audio controls src="${note.blob}"></audio>
+                <button class="btn btn-icon btn-sm" onclick="app.audio.deleteNote('${note.id}')">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            `;
+            this.listContainer.appendChild(el);
+        });
+        lucide.createIcons();
+    }
+}
+
 class ManualManager {
     constructor() {
         this.navLinks = document.querySelectorAll('.nav-item[data-section]');
@@ -223,7 +499,6 @@ class ManualManager {
             this.searchInput.oninput = (e) => this.handleSearch(e.target.value);
         }
 
-        // Initial state: show whatever is marked as active or the first section
         const activeLink = document.querySelector('.manual-nav .nav-item.active') || this.navLinks[0];
         if (activeLink && activeLink.dataset.section) {
             this.switchSection(activeLink.dataset.section);
@@ -234,7 +509,7 @@ class ManualManager {
         this.navLinks.forEach(l => l.classList.remove('active'));
         this.articles.forEach(a => {
             a.classList.remove('active');
-            a.style.display = ''; // Reset display from search
+            a.style.display = '';
         });
 
         const targetLink = document.querySelector(`.manual-nav [data-section="${sectionId}"]`);
@@ -243,26 +518,21 @@ class ManualManager {
         if (targetLink) targetLink.classList.add('active');
         if (targetArticle) targetArticle.classList.add('active');
 
-        lucide.createIcons(); // Ensure icons in manual are rendered
+        lucide.createIcons();
     }
 
     handleSearch(query) {
         query = query.toLowerCase();
-
         if (!query) {
-            // Restore normal view if search is empty
             const activeLink = document.querySelector('.manual-nav .nav-item.active');
-            if (activeLink) {
-                this.switchSection(activeLink.dataset.section);
-            }
+            if (activeLink) this.switchSection(activeLink.dataset.section);
             return;
         }
-
         this.articles.forEach(article => {
             const text = article.innerText.toLowerCase();
             if (text.includes(query)) {
                 article.style.display = 'block';
-                article.classList.add('active'); // Ensure classes match search results
+                article.classList.add('active');
             } else {
                 article.style.display = 'none';
                 article.classList.remove('active');
@@ -273,12 +543,15 @@ class ManualManager {
 
 class App {
     constructor() {
+        this.debug = new DebugManager();
         this.tasks = StorageService.getTasks();
         if (this.tasks.length === 0) this.seedData();
 
         this.calendar = new CalendarManager((date) => this.filterDailyAgenda(date));
         this.schematics = new SchematicsManager();
         this.manual = new ManualManager();
+        this.audio = new AudioManager();
+
         this.currentViewDate = new Date().toISOString().split('T')[0];
 
         this.init();
@@ -386,30 +659,35 @@ class App {
         };
 
         // Image preview for schematic
-        document.getElementById('schema-image').onchange = (e) => {
+        document.getElementById('schema-image').onchange = async (e) => {
             const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
+                try {
+                    console.log('Comprimiendo imagen de esquema...');
+                    const compressed = await ImageUtils.compress(file);
                     const preview = document.getElementById('schema-preview');
-                    preview.innerHTML = `<img src="${ev.target.result}">`;
+                    preview.innerHTML = `<img src="${compressed}">`;
                     preview.classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
+                    console.log('Imagen lista.');
+                } catch (err) {
+                    console.error('Error al procesar imagen:', err);
+                }
             }
         };
 
         // Image preview for tasks
-        document.getElementById('fault-image').onchange = (e) => {
+        document.getElementById('fault-image').onchange = async (e) => {
             const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
+                try {
+                    console.log('Comprimiendo imagen de tarea...');
+                    const compressed = await ImageUtils.compress(file);
                     const preview = document.getElementById('image-preview');
-                    preview.innerHTML = `<img src="${ev.target.result}">`;
+                    preview.innerHTML = `<img src="${compressed}">`;
                     preview.classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
+                } catch (err) {
+                    console.error('Error al procesar imagen:', err);
+                }
             }
         };
 
